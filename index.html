@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Registar radnje — T.ai BAR</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #14100d;
+    --bg-panel: #1e1815;
+    --bg-panel-2: #241d19;
+    --border: #3a2f28;
+    --copper: #c17a4d;
+    --copper-light: #e0a074;
+    --cream: #f2e9dd;
+    --cream-dim: #b7ab9c;
+    --green: #6fa87c;
+    --red: #c1654d;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--cream);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    min-height: 100vh;
+  }
+  .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    font-size: 1.4rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+  }
+  .brand .t { font-family: Georgia, serif; font-style: italic; color: var(--copper-light); }
+  .brand .ai { color: var(--copper); font-size: 0.9rem; }
+  .brand .bar { color: var(--cream); }
+
+  /* LOGIN */
+  #login-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .login-box {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 40px 32px;
+    width: 100%;
+    max-width: 360px;
+    text-align: center;
+  }
+  .login-box .brand { justify-content: center; margin-bottom: 24px; font-size: 1.7rem; }
+  .login-box input {
+    width: 100%;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--cream);
+    font-size: 1rem;
+  }
+  .login-box input:focus { outline: none; border-color: var(--copper); }
+  .btn {
+    width: 100%;
+    padding: 12px 14px;
+    background: var(--copper);
+    color: #1a1310;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .btn:hover { background: var(--copper-light); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-secondary {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--cream-dim);
+  }
+  .btn-secondary:hover { background: var(--bg-panel-2); color: var(--cream); }
+  .error-msg { color: var(--red); font-size: 0.9rem; margin-top: 10px; min-height: 1.2em; }
+
+  /* APP SHELL */
+  #app-screen { display: none; min-height: 100vh; }
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-panel);
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  header .user-info { font-size: 0.85rem; color: var(--cream-dim); display: flex; align-items: center; gap: 12px; }
+  nav {
+    display: flex;
+    gap: 4px;
+    padding: 10px 16px;
+    overflow-x: auto;
+    background: var(--bg-panel-2);
+    border-bottom: 1px solid var(--border);
+  }
+  nav button {
+    background: transparent;
+    border: none;
+    color: var(--cream-dim);
+    padding: 10px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    transition: all 0.15s;
+  }
+  nav button.active { background: var(--copper); color: #1a1310; font-weight: 600; }
+  nav button:hover:not(.active) { background: var(--bg-panel); color: var(--cream); }
+
+  main { padding: 20px; max-width: 900px; margin: 0 auto; }
+  .module { display: none; }
+  .module.active { display: block; }
+
+  .card {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .card h2 { margin-top: 0; font-size: 1.1rem; color: var(--copper-light); }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  label { font-size: 0.78rem; color: var(--cream-dim); display: block; margin-bottom: 4px; }
+  input, select, textarea {
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--cream);
+    font-size: 0.95rem;
+    font-family: inherit;
+  }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--copper); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+  th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--border); }
+  th { color: var(--cream-dim); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; }
+  tr:hover td { background: var(--bg-panel-2); }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    background: var(--bg-panel-2);
+    border: 1px solid var(--border);
+  }
+  .tag.uplaceno { color: var(--green); border-color: var(--green); }
+  .tag.cekanje { color: var(--copper-light); border-color: var(--copper); }
+
+  .summary-row {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+  }
+  .summary-item { flex: 1; min-width: 100px; }
+  .summary-item .label { font-size: 0.75rem; color: var(--cream-dim); text-transform: uppercase; }
+  .summary-item .value { font-size: 1.3rem; font-weight: 700; color: var(--copper-light); }
+
+  .empty-state { text-align: center; color: var(--cream-dim); padding: 30px 10px; font-size: 0.9rem; }
+  .row-actions { display: flex; gap: 6px; }
+  .icon-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--cream-dim);
+    border-radius: 6px;
+    padding: 4px 8px;
+    cursor: pointer;
+    font-size: 0.8rem;
+  }
+  .icon-btn:hover { border-color: var(--red); color: var(--red); }
+
+  .status-msg { font-size: 0.85rem; margin-top: 8px; min-height: 1.2em; }
+  .status-msg.ok { color: var(--green); }
+  .status-msg.err { color: var(--red); }
+
+  .doc-cat-filter { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+  .doc-cat-filter button {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--cream-dim);
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    cursor: pointer;
+  }
+  .doc-cat-filter button.active { background: var(--copper); color: #1a1310; border-color: var(--copper); }
+
+  .doc-list { display: flex; flex-direction: column; gap: 8px; }
+  .doc-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .doc-item a { color: var(--copper-light); text-decoration: none; }
+  .doc-item a:hover { text-decoration: underline; }
+  .doc-meta { font-size: 0.78rem; color: var(--cream-dim); }
+
+  .poslovni-dan-note {
+    font-size: 0.78rem;
+    color: var(--cream-dim);
+    margin-top: -6px;
+    margin-bottom: 14px;
+  }
+
+  ::-webkit-scrollbar { height: 6px; width: 6px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="brand"><span class="t">T</span><span class="ai">.ai</span><span class="bar">BAR</span></div>
+    <p style="color: var(--cream-dim); font-size: 0.85rem; margin-top: -10px; margin-bottom: 24px;">Registar radnje</p>
+    <input type="email" id="login-email" placeholder="Email" autocomplete="username">
+    <input type="password" id="login-password" placeholder="Lozinka" autocomplete="current-password">
+    <button class="btn" id="login-btn">Prijavi se</button>
+    <div class="error-msg" id="login-error"></div>
+  </div>
+</div>
+
+<!-- APP SCREEN -->
+<div id="app-screen">
+  <header>
+    <div class="brand"><span class="t">T</span><span class="ai">.ai</span><span class="bar">BAR</span></div>
+    <div class="user-info">
+      <span id="user-email"></span>
+      <button class="btn btn-secondary" id="logout-btn" style="width:auto; padding: 6px 14px;">Odjava</button>
+    </div>
+  </header>
+
+  <nav id="main-nav">
+    <button data-module="promet" class="active">Promet i kasa</button>
+    <button data-module="pazar">Uplata pazara</button>
+    <button data-module="troskovi">Gotovinski troškovi</button>
+    <button data-module="dokumenti">Dokumenti</button>
+  </nav>
+
+  <main>
+
+    <!-- MODUL: PROMET I KASA -->
+    <div class="module active" id="module-promet">
+      <div class="card">
+        <h2>Novi unos prometa</h2>
+        <div class="poslovni-dan-note" id="promet-dan-note"></div>
+        <div class="form-grid">
+          <div>
+            <label>Datum (poslovni dan)</label>
+            <input type="date" id="promet-datum">
+          </div>
+          <div>
+            <label>Gotovina (RSD)</label>
+            <input type="number" id="promet-gotovina" step="0.01" placeholder="0.00">
+          </div>
+          <div>
+            <label>Kartica (RSD)</label>
+            <input type="number" id="promet-kartica" step="0.01" placeholder="0.00">
+          </div>
+          <div>
+            <label>Prenos / QR (RSD)</label>
+            <input type="number" id="promet-prenos" step="0.01" placeholder="0.00">
+          </div>
+          <div>
+            <label>Faktura (RSD)</label>
+            <input type="number" id="promet-faktura" step="0.01" placeholder="0.00">
+          </div>
+          <div>
+            <label>Broj Z-izveštaja</label>
+            <input type="text" id="promet-zbroj" placeholder="npr. BD-042">
+          </div>
+        </div>
+        <label>Napomena</label>
+        <textarea id="promet-napomena" rows="2" placeholder="opciono"></textarea>
+        <br><br>
+        <button class="btn" id="promet-save-btn" style="width:auto; padding: 10px 24px;">Sačuvaj unos</button>
+        <div class="status-msg" id="promet-status"></div>
+      </div>
+
+      <div class="card">
+        <h2>Istorija prometa</h2>
+        <div id="promet-table-wrap">
+          <div class="empty-state">Učitavanje…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODUL: UPLATA PAZARA -->
+    <div class="module" id="module-pazar">
+      <div class="card">
+        <h2>Nova uplata pazara</h2>
+        <div class="form-grid">
+          <div>
+            <label>Datum uplate</label>
+            <input type="date" id="pazar-datum">
+          </div>
+          <div>
+            <label>Iznos (RSD)</label>
+            <input type="number" id="pazar-iznos" step="0.01" placeholder="0.00">
+          </div>
+          <div>
+            <label>Rok (automatski +7 dana)</label>
+            <input type="date" id="pazar-rok">
+          </div>
+          <div>
+            <label>Status</label>
+            <select id="pazar-status">
+              <option value="na cekanju">Na čekanju</option>
+              <option value="uplaceno">Uplaćeno</option>
+            </select>
+          </div>
+        </div>
+        <label>Napomena</label>
+        <textarea id="pazar-napomena" rows="2" placeholder="opciono"></textarea>
+        <br><br>
+        <button class="btn" id="pazar-save-btn" style="width:auto; padding: 10px 24px;">Sačuvaj uplatu</button>
+        <div class="status-msg" id="pazar-status-msg"></div>
+      </div>
+
+      <div class="card">
+        <h2>Istorija uplata</h2>
+        <div id="pazar-table-wrap">
+          <div class="empty-state">Učitavanje…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODUL: GOTOVINSKI TROŠKOVI -->
+    <div class="module" id="module-troskovi">
+      <div class="card">
+        <h2>Novi gotovinski trošak</h2>
+        <div class="form-grid">
+          <div>
+            <label>Datum</label>
+            <input type="date" id="trosak-datum">
+          </div>
+          <div>
+            <label>Iznos (RSD)</label>
+            <input type="number" id="trosak-iznos" step="0.01" placeholder="0.00">
+          </div>
+          <div>
+            <label>Broj BFR računa</label>
+            <input type="text" id="trosak-broj" placeholder="opciono">
+          </div>
+          <div>
+            <label>Pečat potvrđen</label>
+            <select id="trosak-pecat">
+              <option value="false">Ne</option>
+              <option value="true">Da</option>
+            </select>
+          </div>
+        </div>
+        <label>Opis nabavke</label>
+        <textarea id="trosak-opis" rows="2" placeholder="šta je nabavljeno"></textarea>
+        <br><br>
+        <button class="btn" id="trosak-save-btn" style="width:auto; padding: 10px 24px;">Sačuvaj trošak</button>
+        <div class="status-msg" id="trosak-status-msg"></div>
+      </div>
+
+      <div class="card">
+        <h2>Istorija troškova</h2>
+        <div id="trosak-table-wrap">
+          <div class="empty-state">Učitavanje…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODUL: DOKUMENTI -->
+    <div class="module" id="module-dokumenti">
+      <div class="card">
+        <h2>Otpremi dokument</h2>
+        <div class="form-grid">
+          <div>
+            <label>Naziv dokumenta</label>
+            <input type="text" id="doc-naziv" placeholder="npr. APR rešenje">
+          </div>
+          <div>
+            <label>Kategorija</label>
+            <select id="doc-kategorija">
+              <option value="pravna dokumentacija">Pravna dokumentacija</option>
+              <option value="licna dokumenta">Lična dokumenta</option>
+              <option value="bankovni dokumenti">Bankovni dokumenti</option>
+              <option value="ugovori">Ugovori</option>
+              <option value="ostalo">Ostalo</option>
+            </select>
+          </div>
+          <div>
+            <label>Datum</label>
+            <input type="date" id="doc-datum">
+          </div>
+        </div>
+        <label>Napomena</label>
+        <textarea id="doc-napomena" rows="2" placeholder="opciono"></textarea>
+        <br>
+        <label>Fajl (slika ili PDF)</label>
+        <input type="file" id="doc-fajl" accept="image/*,application/pdf">
+        <br><br>
+        <button class="btn" id="doc-save-btn" style="width:auto; padding: 10px 24px;">Otpremi dokument</button>
+        <div class="status-msg" id="doc-status-msg"></div>
+      </div>
+
+      <div class="card">
+        <h2>Svi dokumenti</h2>
+        <div class="doc-cat-filter" id="doc-filter">
+          <button data-cat="sve" class="active">Sve</button>
+          <button data-cat="pravna dokumentacija">Pravna</button>
+          <button data-cat="licna dokumenta">Lična</button>
+          <button data-cat="bankovni dokumenti">Bankovni</button>
+          <button data-cat="ugovori">Ugovori</button>
+          <button data-cat="ostalo">Ostalo</button>
+        </div>
+        <div class="doc-list" id="doc-list-wrap">
+          <div class="empty-state">Učitavanje…</div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// ============================================
+// KONFIGURACIJA
+// ============================================
+const SUPABASE_URL = "https://vexxbggihfbkjtbpkkcm.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_DeAJK2T12yR5aYCydSAcdw_weeq2aib";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ============================================
+// POSLOVNI DAN LOGIKA
+// unosi pre 6h ujutru racunaju se u prethodni poslovni dan
+// ============================================
+function poslovniDan() {
+  const now = new Date();
+  if (now.getHours() < 6) {
+    now.setDate(now.getDate() - 1);
+  }
+  return now.toISOString().split("T")[0];
+}
+
+function fmtMoney(n) {
+  return new Intl.NumberFormat("sr-RS", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n || 0);
+}
+function fmtDate(d) {
+  if (!d) return "-";
+  const parts = d.split("-");
+  return `${parts[2]}.${parts[1]}.${parts[0]}.`;
+}
+
+// ============================================
+// AUTH
+// ============================================
+const loginScreen = document.getElementById("login-screen");
+const appScreen = document.getElementById("app-screen");
+const loginError = document.getElementById("login-error");
+
+document.getElementById("login-btn").addEventListener("click", async () => {
+  const email = document.getElementById("login-email").value.trim();
+  const password = document.getElementById("login-password").value;
+  loginError.textContent = "";
+  const btn = document.getElementById("login-btn");
+  btn.disabled = true;
+  btn.textContent = "Prijavljivanje…";
+
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+
+  btn.disabled = false;
+  btn.textContent = "Prijavi se";
+
+  if (error) {
+    loginError.textContent = "Pogrešan email ili lozinka.";
+    return;
+  }
+  showApp(data.user);
+});
+
+document.getElementById("login-password").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") document.getElementById("login-btn").click();
+});
+
+document.getElementById("logout-btn").addEventListener("click", async () => {
+  await sb.auth.signOut();
+  location.reload();
+});
+
+async function showApp(user) {
+  loginScreen.style.display = "none";
+  appScreen.style.display = "block";
+  document.getElementById("user-email").textContent = user.email;
+  initDefaults();
+  loadPromet();
+  loadPazar();
+  loadTroskovi();
+  loadDokumenti();
+}
+
+async function checkSession() {
+  const { data } = await sb.auth.getSession();
+  if (data.session) {
+    showApp(data.session.user);
+  }
+}
+checkSession();
+
+// ============================================
+// NAVIGACIJA
+// ============================================
+document.getElementById("main-nav").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-module]");
+  if (!btn) return;
+  document.querySelectorAll("#main-nav button").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  document.querySelectorAll(".module").forEach(m => m.classList.remove("active"));
+  document.getElementById("module-" + btn.dataset.module).classList.add("active");
+});
+
+function initDefaults() {
+  const dan = poslovniDan();
+  document.getElementById("promet-datum").value = dan;
+  document.getElementById("pazar-datum").value = dan;
+  document.getElementById("trosak-datum").value = dan;
+  document.getElementById("doc-datum").value = dan;
+
+  const today = new Date();
+  const isNoc = today.getHours() < 6;
+  document.getElementById("promet-dan-note").textContent = isNoc
+    ? `Napomena: sada je pre 6h ujutru, pa se unos automatski računa u prethodni poslovni dan (${fmtDate(dan)}).`
+    : `Poslovni dan: ${fmtDate(dan)}`;
+
+  // auto rok +7 dana za pazar
+  const rokInput = document.getElementById("pazar-rok");
+  function updateRok() {
+    const val = document.getElementById("pazar-datum").value;
+    if (!val) return;
+    const d = new Date(val);
+    d.setDate(d.getDate() + 7);
+    rokInput.value = d.toISOString().split("T")[0];
+  }
+  document.getElementById("pazar-datum").addEventListener("change", updateRok);
+  updateRok();
+}
+
+// ============================================
+// MODUL: PROMET I KASA
+// ============================================
+document.getElementById("promet-save-btn").addEventListener("click", async () => {
+  const payload = {
+    datum: document.getElementById("promet-datum").value,
+    gotovina: parseFloat(document.getElementById("promet-gotovina").value) || 0,
+    kartica: parseFloat(document.getElementById("promet-kartica").value) || 0,
+    prenos_qr: parseFloat(document.getElementById("promet-prenos").value) || 0,
+    faktura: parseFloat(document.getElementById("promet-faktura").value) || 0,
+    broj_z_izvestaja: document.getElementById("promet-zbroj").value || null,
+    napomena: document.getElementById("promet-napomena").value || null,
+  };
+  const statusEl = document.getElementById("promet-status");
+  if (!payload.datum) { statusEl.textContent = "Datum je obavezan."; statusEl.className = "status-msg err"; return; }
+
+  const { error } = await sb.from("promet_dnevni").insert(payload);
+  if (error) {
+    statusEl.textContent = "Greška: " + error.message;
+    statusEl.className = "status-msg err";
+    return;
+  }
+  statusEl.textContent = "Uspešno sačuvano.";
+  statusEl.className = "status-msg ok";
+  ["promet-gotovina","promet-kartica","promet-prenos","promet-faktura","promet-zbroj","promet-napomena"].forEach(id => document.getElementById(id).value = "");
+  loadPromet();
+});
+
+async function loadPromet() {
+  const wrap = document.getElementById("promet-table-wrap");
+  const { data, error } = await sb.from("promet_dnevni").select("*").order("datum", { ascending: false }).limit(30);
+  if (error) { wrap.innerHTML = `<div class="empty-state">Greška pri učitavanju: ${error.message}</div>`; return; }
+  if (!data || data.length === 0) { wrap.innerHTML = `<div class="empty-state">Nema unosa još uvek.</div>`; return; }
+
+  let totalG = 0, totalK = 0, totalP = 0, totalF = 0;
+  data.forEach(r => { totalG += Number(r.gotovina); totalK += Number(r.kartica); totalP += Number(r.prenos_qr); totalF += Number(r.faktura); });
+
+  let rows = data.map(r => `
+    <tr>
+      <td>${fmtDate(r.datum)}</td>
+      <td class="num">${fmtMoney(r.gotovina)}</td>
+      <td class="num">${fmtMoney(r.kartica)}</td>
+      <td class="num">${fmtMoney(r.prenos_qr)}</td>
+      <td class="num">${fmtMoney(r.faktura)}</td>
+      <td>${r.broj_z_izvestaja || "-"}</td>
+      <td class="row-actions"><button class="icon-btn" onclick="deleteRow('promet_dnevni','${r.id}', loadPromet)">Obriši</button></td>
+    </tr>
+  `).join("");
+
+  wrap.innerHTML = `
+    <div style="overflow-x:auto;">
+    <table>
+      <thead><tr><th>Datum</th><th class="num">Gotovina</th><th class="num">Kartica</th><th class="num">Prenos</th><th class="num">Faktura</th><th>Z-izveštaj</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    </div>
+    <div class="summary-row">
+      <div class="summary-item"><div class="label">Gotovina</div><div class="value">${fmtMoney(totalG)}</div></div>
+      <div class="summary-item"><div class="label">Kartica</div><div class="value">${fmtMoney(totalK)}</div></div>
+      <div class="summary-item"><div class="label">Prenos</div><div class="value">${fmtMoney(totalP)}</div></div>
+      <div class="summary-item"><div class="label">Faktura</div><div class="value">${fmtMoney(totalF)}</div></div>
+    </div>
+  `;
+}
+
+// ============================================
+// MODUL: UPLATA PAZARA
+// ============================================
+document.getElementById("pazar-save-btn").addEventListener("click", async () => {
+  const payload = {
+    datum_uplate: document.getElementById("pazar-datum").value,
+    iznos: parseFloat(document.getElementById("pazar-iznos").value) || 0,
+    rok: document.getElementById("pazar-rok").value,
+    status: document.getElementById("pazar-status").value,
+    napomena: document.getElementById("pazar-napomena").value || null,
+  };
+  const statusEl = document.getElementById("pazar-status-msg");
+  if (!payload.datum_uplate || !payload.rok) { statusEl.textContent = "Datum i rok su obavezni."; statusEl.className = "status-msg err"; return; }
+
+  const { error } = await sb.from("uplate_pazara").insert(payload);
+  if (error) { statusEl.textContent = "Greška: " + error.message; statusEl.className = "status-msg err"; return; }
+  statusEl.textContent = "Uspešno sačuvano.";
+  statusEl.className = "status-msg ok";
+  document.getElementById("pazar-iznos").value = "";
+  document.getElementById("pazar-napomena").value = "";
+  loadPazar();
+});
+
+async function loadPazar() {
+  const wrap = document.getElementById("pazar-table-wrap");
+  const { data, error } = await sb.from("uplate_pazara").select("*").order("datum_uplate", { ascending: false }).limit(30);
+  if (error) { wrap.innerHTML = `<div class="empty-state">Greška: ${error.message}</div>`; return; }
+  if (!data || data.length === 0) { wrap.innerHTML = `<div class="empty-state">Nema unosa još uvek.</div>`; return; }
+
+  let rows = data.map(r => `
+    <tr>
+      <td>${fmtDate(r.datum_uplate)}</td>
+      <td class="num">${fmtMoney(r.iznos)}</td>
+      <td>${fmtDate(r.rok)}</td>
+      <td><span class="tag ${r.status === 'uplaceno' ? 'uplaceno' : 'cekanje'}">${r.status === 'uplaceno' ? 'Uplaćeno' : 'Na čekanju'}</span></td>
+      <td class="row-actions"><button class="icon-btn" onclick="deleteRow('uplate_pazara','${r.id}', loadPazar)">Obriši</button></td>
+    </tr>
+  `).join("");
+
+  wrap.innerHTML = `<div style="overflow-x:auto;"><table>
+    <thead><tr><th>Datum uplate</th><th class="num">Iznos</th><th>Rok</th><th>Status</th><th></th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div>`;
+}
+
+// ============================================
+// MODUL: GOTOVINSKI TROŠKOVI
+// ============================================
+document.getElementById("trosak-save-btn").addEventListener("click", async () => {
+  const payload = {
+    datum: document.getElementById("trosak-datum").value,
+    iznos: parseFloat(document.getElementById("trosak-iznos").value) || 0,
+    opis: document.getElementById("trosak-opis").value,
+    broj_racuna: document.getElementById("trosak-broj").value || null,
+    pecat_potvrdjen: document.getElementById("trosak-pecat").value === "true",
+  };
+  const statusEl = document.getElementById("trosak-status-msg");
+  if (!payload.datum || !payload.opis) { statusEl.textContent = "Datum i opis su obavezni."; statusEl.className = "status-msg err"; return; }
+
+  const { error } = await sb.from("gotovinski_troskovi").insert(payload);
+  if (error) { statusEl.textContent = "Greška: " + error.message; statusEl.className = "status-msg err"; return; }
+  statusEl.textContent = "Uspešno sačuvano.";
+  statusEl.className = "status-msg ok";
+  ["trosak-iznos","trosak-opis","trosak-broj"].forEach(id => document.getElementById(id).value = "");
+  loadTroskovi();
+});
+
+async function loadTroskovi() {
+  const wrap = document.getElementById("trosak-table-wrap");
+  const { data, error } = await sb.from("gotovinski_troskovi").select("*").order("datum", { ascending: false }).limit(30);
+  if (error) { wrap.innerHTML = `<div class="empty-state">Greška: ${error.message}</div>`; return; }
+  if (!data || data.length === 0) { wrap.innerHTML = `<div class="empty-state">Nema unosa još uvek.</div>`; return; }
+
+  let total = 0;
+  data.forEach(r => total += Number(r.iznos));
+
+  let rows = data.map(r => `
+    <tr>
+      <td>${fmtDate(r.datum)}</td>
+      <td class="num">${fmtMoney(r.iznos)}</td>
+      <td>${r.opis}</td>
+      <td>${r.broj_racuna || "-"}</td>
+      <td>${r.pecat_potvrdjen ? "✓" : "-"}</td>
+      <td class="row-actions"><button class="icon-btn" onclick="deleteRow('gotovinski_troskovi','${r.id}', loadTroskovi)">Obriši</button></td>
+    </tr>
+  `).join("");
+
+  wrap.innerHTML = `
+    <div style="overflow-x:auto;">
+    <table>
+      <thead><tr><th>Datum</th><th class="num">Iznos</th><th>Opis</th><th>Broj računa</th><th>Pečat</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    </div>
+    <div class="summary-row">
+      <div class="summary-item"><div class="label">Ukupno troškova</div><div class="value">${fmtMoney(total)}</div></div>
+    </div>
+  `;
+}
+
+// ============================================
+// MODUL: DOKUMENTI
+// ============================================
+let docFilter = "sve";
+
+document.getElementById("doc-filter").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-cat]");
+  if (!btn) return;
+  document.querySelectorAll("#doc-filter button").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  docFilter = btn.dataset.cat;
+  loadDokumenti();
+});
+
+document.getElementById("doc-save-btn").addEventListener("click", async () => {
+  const naziv = document.getElementById("doc-naziv").value.trim();
+  const kategorija = document.getElementById("doc-kategorija").value;
+  const datum = document.getElementById("doc-datum").value;
+  const napomena = document.getElementById("doc-napomena").value || null;
+  const fileInput = document.getElementById("doc-fajl");
+  const file = fileInput.files[0];
+  const statusEl = document.getElementById("doc-status-msg");
+
+  if (!naziv || !file) { statusEl.textContent = "Naziv i fajl su obavezni."; statusEl.className = "status-msg err"; return; }
+
+  const btn = document.getElementById("doc-save-btn");
+  btn.disabled = true;
+  statusEl.textContent = "Otpremanje…";
+  statusEl.className = "status-msg";
+
+  const filePath = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+  const { error: uploadError } = await sb.storage.from("dokumenti").upload(filePath, file);
+
+  if (uploadError) {
+    statusEl.textContent = "Greška pri otpremanju: " + uploadError.message;
+    statusEl.className = "status-msg err";
+    btn.disabled = false;
+    return;
+  }
+
+  const { error: insertError } = await sb.from("dokumenti").insert({
+    naziv, kategorija, datum, napomena, fajl_url: filePath
+  });
+
+  btn.disabled = false;
+  if (insertError) {
+    statusEl.textContent = "Greška: " + insertError.message;
+    statusEl.className = "status-msg err";
+    return;
+  }
+
+  statusEl.textContent = "Uspešno otpremljeno.";
+  statusEl.className = "status-msg ok";
+  document.getElementById("doc-naziv").value = "";
+  document.getElementById("doc-napomena").value = "";
+  fileInput.value = "";
+  loadDokumenti();
+});
+
+async function loadDokumenti() {
+  const wrap = document.getElementById("doc-list-wrap");
+  let query = sb.from("dokumenti").select("*").order("datum", { ascending: false });
+  if (docFilter !== "sve") query = query.eq("kategorija", docFilter);
+  const { data, error } = await query;
+  if (error) { wrap.innerHTML = `<div class="empty-state">Greška: ${error.message}</div>`; return; }
+  if (!data || data.length === 0) { wrap.innerHTML = `<div class="empty-state">Nema dokumenata u ovoj kategoriji.</div>`; return; }
+
+  const items = await Promise.all(data.map(async (d) => {
+    const { data: signed } = await sb.storage.from("dokumenti").createSignedUrl(d.fajl_url, 3600);
+    const url = signed ? signed.signedUrl : "#";
+    return `
+      <div class="doc-item">
+        <div>
+          <a href="${url}" target="_blank">${d.naziv}</a>
+          <div class="doc-meta">${d.kategorija} · ${fmtDate(d.datum)}${d.napomena ? " · " + d.napomena : ""}</div>
+        </div>
+        <button class="icon-btn" onclick="deleteDoc('${d.id}', '${d.fajl_url}')">Obriši</button>
+      </div>
+    `;
+  }));
+  wrap.innerHTML = `<div class="doc-list">${items.join("")}</div>`;
+}
+
+async function deleteDoc(id, filePath) {
+  if (!confirm("Obrisati ovaj dokument?")) return;
+  await sb.storage.from("dokumenti").remove([filePath]);
+  await sb.from("dokumenti").delete().eq("id", id);
+  loadDokumenti();
+}
+
+// ============================================
+// ZAJEDNIČKA FUNKCIJA ZA BRISANJE
+// ============================================
+async function deleteRow(table, id, reloadFn) {
+  if (!confirm("Obrisati ovaj unos?")) return;
+  const { error } = await sb.from(table).delete().eq("id", id);
+  if (error) { alert("Greška: " + error.message); return; }
+  reloadFn();
+}
+</script>
+</body>
+</html>
